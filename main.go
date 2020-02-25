@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/michaeltintiuc/xpenz-go/pkg/middleware"
-	"github.com/michaeltintiuc/xpenz-go/pkg/routes"
+	"github.com/michaeltintiuc/shackle-api/pkg/middleware"
+	"github.com/michaeltintiuc/shackle-api/pkg/routes"
 )
 
 func main() {

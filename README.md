@@ -1,2 +1,2 @@
-# xpenz-go
-Backend provider for xpenz
+# shackle-api
+Backend provider for shackle
