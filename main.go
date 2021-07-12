@@ -1,45 +1,35 @@
 package main
 
 import (
-	"context"
-	"flag"
 	"log"
-	"net/http"
 	"os"
 	"os/signal"
-	"time"
 
-	"github.com/gorilla/mux"
-	"github.com/michaeltintiuc/shackle-api/pkg/middleware"
-	"github.com/michaeltintiuc/shackle-api/pkg/routes"
+	"github.com/joho/godotenv"
+	"github.com/michaeltintiuc/shackle-api/pkg/app"
 )
 
 func main() {
-	var wait time.Duration
-	var port string
-	flag.StringVar(&port, "port", "8080", "the port to listen on - e.g. 8000")
-	flag.DurationVar(&wait, "graceful-timeout", time.Second*15, "the duration for which the server gracefully wait for existing connections to finish - e.g. 15s or 1m")
-	flag.Parse()
-
-	r := mux.NewRouter().StrictSlash(true)
-	middleware.Init(r)
-	routes.Init(r)
-
-	s := &http.Server{
-		Handler:      r,
-		Addr:         "0.0.0.0:" + port,
-		WriteTimeout: time.Second * 15,
-		ReadTimeout:  time.Second * 15,
-		IdleTimeout:  time.Second * 60,
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
 	}
 
-	log.Printf("Listening on port %s\n", port)
+	port := getEnv("PORT", "8080")
+	dbInfo := app.DbInfo{
+		Host: os.Getenv("DB_HOST"),
+		Port: os.Getenv("DB_PORT"),
+		User: os.Getenv("DB_USER"),
+		Pass: os.Getenv("DB_PASS"),
+		Name: os.Getenv("DB_NAME"),
+	}
 
-	go func() {
-		if err := s.ListenAndServe(); err != nil {
-			log.Println(err)
-		}
-	}()
+	application, err := app.NewApp(port, dbInfo, os.Getenv("JWT_SECRET"))
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	go application.ListenAndServe()
 
 	// We'll accept graceful shutdowns when quit via SIGINT (Ctrl+C)
 	// SIGKILL, SIGQUIT or SIGTERM (Ctrl+/) will not be caught.
@@ -48,12 +38,13 @@ func main() {
 	signal.Notify(c, os.Interrupt)
 	<-c
 
-	ctx, cancel := context.WithTimeout(context.Background(), wait)
-	defer cancel()
-
-	// Doesn't block if no connections, but will otherwise wait until the timeout deadline
-	s.Shutdown(ctx)
-
-	log.Println("Shutting down")
+	application.Shutdown()
 	os.Exit(0)
+}
+
+func getEnv(key, fallback string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	return fallback
 }

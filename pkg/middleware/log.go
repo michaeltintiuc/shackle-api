@@ -3,8 +3,6 @@ package middleware
 import (
 	"log"
 	"net/http"
-
-	"github.com/gorilla/mux"
 )
 
 type statusRecorder struct {
@@ -28,16 +26,10 @@ func (srw *statusRecorder) WriteHeader(status int) {
 	srw.w.WriteHeader(status)
 }
 
-func Init(r *mux.Router) {
-	r.Use(logger)
-}
-
-func logger(next http.Handler) http.Handler {
+func Log(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		srw := &statusRecorder{w: w}
-		defer func() {
-			log.Printf("[%d] %s %s - %s", srw.status, r.Method, r.RemoteAddr, r.RequestURI)
-		}()
 		next.ServeHTTP(srw, r)
+		log.Printf("[%d] %s %s - %s\n", srw.status, r.Method, r.RemoteAddr, r.RequestURI)
 	})
 }
