@@ -8,8 +8,8 @@ import (
 
 	"github.com/form3tech-oss/jwt-go"
 	"github.com/michaeltintiuc/shackle-api/pkg/models"
+	"github.com/michaeltintiuc/shackle-api/pkg/utils"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -18,113 +18,51 @@ type User struct {
 	Service
 	Model models.User
 }
+type auth struct {
+	Email    string
+	Password string
+}
+type response struct {
+	Token string
+}
 
-// Create an item
+// Login authenticates users
 func (s *User) Login(jwtSecret string) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		auth := struct {
-			Email    string
-			Password string
-		}{}
+		auth := auth{}
 		json.NewDecoder(r.Body).Decode(&auth)
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
 		cur := s.Collection.FindOne(ctx, bson.M{"email": auth.Email})
-		model := models.User{}
-		cur.Decode(&model)
 
-		err := bcrypt.CompareHashAndPassword([]byte(model.Password), []byte(auth.Password))
-		if hasErrors(w, err, "Failed authentication", http.StatusForbidden) {
+		if utils.HasError(w, cur.Err(), "Wrong email or password", http.StatusUnauthorized) {
 			return
 		}
 
-		token := jwt.New(jwt.SigningMethodHS256)
+		cur.Decode(&s.Model)
 
-		// Sign and get the complete encoded token as a string using the secret
-		tokenString, err := token.SignedString([]byte(jwtSecret))
-		if hasErrors(w, err, "Failed token creation", http.StatusInternalServerError) {
+		err := bcrypt.CompareHashAndPassword([]byte(s.Model.Password), []byte(auth.Password))
+		if utils.HasError(w, err, "Wrong email or password", http.StatusForbidden) {
 			return
 		}
 
-		json.NewEncoder(w).Encode(struct{ Token string }{tokenString})
+		token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, &utils.JWTClaims{
+			Uid:   s.Model.Id.String(),
+			Email: s.Model.Email,
+			StandardClaims: jwt.StandardClaims{
+				ExpiresAt: time.Now().Local().Add(time.Minute).Unix(),
+			},
+		}).SignedString([]byte(jwtSecret))
+
+		if utils.HasError(w, err, "Failed token creation", http.StatusInternalServerError) {
+			return
+		}
+
+		json.NewEncoder(w).Encode(response{token})
 	}
 }
 
-// Create an item
 func (s *User) Create(w http.ResponseWriter, r *http.Request) {
-	err := json.NewDecoder(r.Body).Decode(&s.Model)
-	if hasErrors(w, err, "Failed to read item", http.StatusInternalServerError) {
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-	result, err := s.Collection.InsertOne(ctx, s.Model)
-
-	if hasErrors(w, err, "Failed to create item", http.StatusInternalServerError) {
-		return
-	}
-
-	json.NewEncoder(w).Encode(result)
-}
-
-// Find all items
-func (s *User) Find(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-
-	cur, err := s.Collection.Find(ctx, bson.M{})
-	if hasErrors(w, err, "Failed fetching items", http.StatusInternalServerError) {
-		return
-	}
-
-	var result []models.User
-	for cur.Next(context.Background()) {
-		err := cur.Decode(&s.Model)
-		if hasErrors(w, err, "Failed parsing items", http.StatusInternalServerError) {
-			return
-		}
-		result = append(result, s.Model)
-	}
-
-	json.NewEncoder(w).Encode(result)
-}
-
-// FindOne item
-func (s *User) FindOne(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-
-	id, err := getId(r)
-	if hasErrors(w, err, "Failed deleting item", http.StatusInternalServerError) {
-		return
-	}
-
-	err = s.Collection.FindOne(ctx, bson.D{primitive.E{Key: "_id", Value: id}}).Decode(&s.Model)
-
-	if hasErrors(w, err, "Failed fetching item", http.StatusInternalServerError) {
-		return
-	}
-
-	json.NewEncoder(w).Encode(s.Model)
-}
-
-// Delete an item by id
-func (s *User) Delete(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-
-	id, err := getId(r)
-	if hasErrors(w, err, "Failed deleting item", http.StatusInternalServerError) {
-		return
-	}
-
-	result, err := s.Collection.DeleteOne(ctx, bson.M{"_id": id})
-
-	if hasErrors(w, err, "Failed deleting item", http.StatusInternalServerError) {
-		return
-	}
-
-	json.NewEncoder(w).Encode(result)
+	// TODO
 }
