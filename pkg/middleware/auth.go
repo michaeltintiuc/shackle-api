@@ -16,8 +16,7 @@ func Auth(jwtSecret string) mux.MiddlewareFunc {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			token, err := getToken(r)
 
-			if err != nil {
-				utils.HasError(w, err, "JWT token not found", http.StatusForbidden)
+			if utils.HasError(w, err, "JWT token not found", http.StatusForbidden) {
 				return
 			}
 
@@ -29,8 +28,7 @@ func Auth(jwtSecret string) mux.MiddlewareFunc {
 				},
 			)
 
-			if err != nil {
-				utils.HasError(w, err, "Invalid JWT token", http.StatusForbidden)
+			if utils.HasError(w, err, "Invalid JWT token", http.StatusForbidden) {
 				return
 			}
 
