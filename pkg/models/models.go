@@ -11,8 +11,7 @@ type Expense struct {
 
 // User model
 type User struct {
-	Id          primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
-	Email       string             `json:"email" bson:"email"`
-	Password    string             `json:"-" bson:"password"`
-	SetPassword string             `json:"password" bson:"-"`
+	Id       primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
+	Email    string             `json:"email" bson:"email"`
+	Password string             `json:"-" bson:"password"`
 }

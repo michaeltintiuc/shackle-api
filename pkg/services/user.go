@@ -23,7 +23,7 @@ type auth struct {
 	Password string
 }
 type response struct {
-	Token string
+	Token string `json:"token"`
 }
 
 // Login authenticates users
@@ -51,7 +51,7 @@ func (s *User) Login(jwtSecret string) func(w http.ResponseWriter, r *http.Reque
 			Uid:   s.Model.Id.String(),
 			Email: s.Model.Email,
 			StandardClaims: jwt.StandardClaims{
-				ExpiresAt: time.Now().Local().Add(time.Minute).Unix(),
+				ExpiresAt: time.Now().Local().Add(time.Hour).Unix(),
 			},
 		}).SignedString([]byte(jwtSecret))
 

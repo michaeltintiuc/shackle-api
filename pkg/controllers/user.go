@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"github.com/michaeltintiuc/shackle-api/pkg/models"
 	"github.com/michaeltintiuc/shackle-api/pkg/services"
 )
 
@@ -14,6 +13,6 @@ func newUserController(a controllable, jwtSecret string) {
 
 	a.ApiRouter().HandleFunc("/users", s.Find(&s.Model)).Methods("GET")
 	a.ApiRouter().HandleFunc("/user/{id}", s.FindOne(&s.Model)).Methods("GET")
-	a.ApiRouter().HandleFunc("/user", s.Create(new(models.User))).Methods("POST")
+	a.ApiRouter().HandleFunc("/user", s.Create).Methods("POST")
 	a.ApiRouter().HandleFunc("/user/{id}", s.Delete).Methods("DELETE")
 }
