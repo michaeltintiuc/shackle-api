@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -14,14 +13,11 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type Service struct {
 	Collection *mongo.Collection
-}
-
-func getId(r *http.Request) (primitive.ObjectID, error) {
-	return primitive.ObjectIDFromHex(mux.Vars(r)["id"])
 }
 
 // Create an item
@@ -34,8 +30,8 @@ func (s *Service) Create(model interface{}) func(w http.ResponseWriter, r *http.
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
-		result, err := s.Collection.InsertOne(ctx, model)
 
+		result, err := s.Collection.InsertOne(ctx, model)
 		if utils.HasError(w, err, "Failed to create item", http.StatusInternalServerError) {
 			return
 		}
@@ -50,7 +46,25 @@ func (s *Service) Find(model interface{}) func(w http.ResponseWriter, r *http.Re
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
 
-		cur, err := s.Collection.Find(ctx, bson.M{})
+		opts := options.Find()
+		filter := bson.M{}
+		parsedParams, err := parseQuery(r, map[string]string{"limit": "int", "search": "string", "tags": "uintArray"})
+
+		if utils.HasError(w, err, "Failed parsing query parameters", http.StatusBadRequest) {
+			return
+		}
+
+		for key, val := range parsedParams {
+			switch key {
+			case "limit":
+				opts.SetLimit(val.(int64))
+			case "search":
+				filter["$text"] = bson.M{"$search": val}
+				opts.SetSort(bson.M{"score": bson.M{"$meta": "textScore"}})
+			}
+		}
+
+		cur, err := s.Collection.Find(ctx, filter, opts)
 		defer cur.Close(ctx)
 
 		if utils.HasError(w, err, "Failed fetching items", http.StatusInternalServerError) {
@@ -86,14 +100,12 @@ func (s *Service) FindOne(model interface{}) func(w http.ResponseWriter, r *http
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
 
-		id, err := getId(r)
+		id, err := primitive.ObjectIDFromHex(mux.Vars(r)["id"])
 		if utils.HasError(w, err, "Failed deleting item", http.StatusInternalServerError) {
 			return
 		}
 
 		err = s.Collection.FindOne(ctx, bson.D{primitive.E{Key: "_id", Value: id}}).Decode(model)
-		fmt.Println(model)
-
 		if utils.HasError(w, err, "Failed fetching item", http.StatusInternalServerError) {
 			return
 		}
@@ -107,7 +119,7 @@ func (s *Service) Delete(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	id, err := getId(r)
+	id, err := primitive.ObjectIDFromHex(mux.Vars(r)["id"])
 	if utils.HasError(w, err, "Failed deleting item", http.StatusInternalServerError) {
 		return
 	}

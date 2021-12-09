@@ -5,10 +5,10 @@ import (
 )
 
 // newExpenseController creates a new ExpenseController
-func newUserController(a controllable, jwtSecret string) {
-	s := &services.User{Service: services.Service{Collection: a.Db().Collection("users")}}
+func newUserController(a controllable) {
+	s := &services.User{Service: services.Service{Collection: a.Db().Collection("users")}, ClientCollection: a.Db().Collection("clientApplications")}
 
-	a.AuthRouter().HandleFunc("/login", s.Login(jwtSecret)).Methods("POST")
+	a.AuthRouter().HandleFunc("/login", s.Login(a.Session())).Methods("POST")
 	// a.ApiRouter().HandleFunc("/logout", s.Find(s.Model))).Methods("GET")
 
 	a.ApiRouter().HandleFunc("/users", s.Find(&s.Model)).Methods("GET")

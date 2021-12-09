@@ -7,6 +7,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/michaeltintiuc/shackle-api/pkg/app"
+	"github.com/michaeltintiuc/shackle-api/pkg/session"
 )
 
 func main() {
@@ -23,8 +24,13 @@ func main() {
 		Pass: os.Getenv("DB_PASS"),
 		Name: os.Getenv("DB_NAME"),
 	}
+	sessionInfo := session.SessionInfo{
+		AuthKey: []byte(os.Getenv("SESSION_AUTH_KEY")),
+		EncKey:  []byte(os.Getenv("SESSION_ENC_KEY")),
+		Name:    os.Getenv("SESSION_NAME"),
+	}
 
-	application, err := app.NewApp(port, dbInfo, os.Getenv("JWT_SECRET"))
+	application, err := app.NewApp(port, dbInfo, sessionInfo)
 	if err != nil {
 		log.Fatalln(err)
 	}
